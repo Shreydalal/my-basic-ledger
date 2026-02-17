@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { CustomerForm } from "@/components/CustomerForm";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { exportToCSV, parseCSV, importCSVFile } from "@/lib/csv";
+import { generateId } from "@/hooks/useLocalStorage";
 import type { Customer } from "@/types";
 
 export default function Customers() {
@@ -29,6 +31,28 @@ export default function Customers() {
     }
   };
 
+  const handleExport = () => {
+    exportToCSV(customers, "customers", [
+      { key: "name", label: "Name" },
+      { key: "phone", label: "Phone" },
+      { key: "email", label: "Email" },
+      { key: "address", label: "Address" },
+    ]);
+  };
+
+  const handleImport = () => {
+    importCSVFile((text) => {
+      const imported = parseCSV(text, (row) => ({
+        id: generateId(),
+        name: row["Name"] || "",
+        phone: row["Phone"] || "",
+        email: row["Email"] || "",
+        address: row["Address"] || undefined,
+      }));
+      setCustomers((prev) => [...prev, ...imported]);
+    });
+  };
+
   const columns = [
     { key: "name", label: "Name", sortable: true },
     { key: "phone", label: "Phone" },
@@ -38,11 +62,19 @@ export default function Customers() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <h1 className="text-2xl font-bold text-foreground">Customers</h1>
-        <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Add Customer
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
+            <Upload className="h-4 w-4" /> Import CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={customers.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Add Customer
+          </Button>
+        </div>
       </div>
       <DataTable
         data={customers}
