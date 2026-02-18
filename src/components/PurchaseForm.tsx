@@ -27,42 +27,38 @@ interface PurchaseFormProps {
 export function PurchaseForm({ open, onClose, onSave, initial, suppliers }: PurchaseFormProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [supplierName, setSupplierName] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [price, setPrice] = useState("");
+  const [billNumber, setBillNumber] = useState("");
+  const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (initial) {
       setDate(new Date(initial.date));
-      setSupplierName(initial.supplierName);
-      setItemName(initial.itemName);
-      setQuantity(String(initial.quantity));
-      setPrice(String(initial.price));
+      setSupplierName(initial.supplier_name);
+      setBillNumber(initial.bill_number);
+      setAmount(String(initial.total_amount));
       setNotes(initial.notes || "");
     } else {
       setDate(new Date());
       setSupplierName("");
-      setItemName("");
-      setQuantity("");
-      setPrice("");
+      setBillNumber("");
+      setAmount("");
       setNotes("");
     }
   }, [initial, open]);
 
   const handleSave = () => {
-    const qty = parseFloat(quantity) || 0;
-    const prc = parseFloat(price) || 0;
-    onSave({
+    const total = parseFloat(amount) || 0;
+    const purchaseData = {
       id: initial?.id || generateId(),
       date: date.toISOString(),
-      supplierName,
-      itemName,
-      quantity: qty,
-      price: prc,
-      totalAmount: qty * prc,
+      supplier_name: supplierName,
+      bill_number: billNumber,
+      total_amount: total,
       notes: notes || undefined,
-    });
+    };
+
+    onSave(purchaseData as Purchase);
     onClose();
   };
 
@@ -103,22 +99,15 @@ export function PurchaseForm({ open, onClose, onSave, initial, suppliers }: Purc
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Item Name</Label>
-              <Input className="mt-1" value={itemName} onChange={(e) => setItemName(e.target.value)} />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Quantity</Label>
-                <Input className="mt-1" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                <Label>Bill Number</Label>
+                <Input className="mt-1" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} />
               </div>
               <div>
-                <Label>Price</Label>
-                <Input className="mt-1" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+                <Label>Amount</Label>
+                <Input className="mt-1" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
               </div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Total: <span className="font-medium text-foreground">{formatINR((parseFloat(quantity) || 0) * (parseFloat(price) || 0))}</span>
             </div>
             <div>
               <Label>Notes (optional)</Label>
@@ -129,7 +118,7 @@ export function PurchaseForm({ open, onClose, onSave, initial, suppliers }: Purc
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           {suppliers.length > 0 && (
-            <Button onClick={handleSave} disabled={!supplierName || !itemName}>Save</Button>
+            <Button onClick={handleSave} disabled={!supplierName || !amount}>Save</Button>
           )}
         </DialogFooter>
       </DialogContent>

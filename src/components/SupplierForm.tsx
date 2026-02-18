@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+// import { triggerWebhook } from "@/lib/webhook";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import type { Supplier } from "@/types";
-import { generateId } from "@/hooks/useLocalStorage";
+// import { generateId } from "@/hooks/useLocalStorage";
 
 interface SupplierFormProps {
   open: boolean;
@@ -25,29 +26,36 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [openingBalance, setOpeningBalance] = useState("");
 
   useEffect(() => {
     if (initial) {
       setName(initial.name);
       setPhone(initial.phone);
-      setEmail(initial.email);
+      setEmail(initial.email || "");
       setAddress(initial.address || "");
+      setOpeningBalance(initial.opening_balance?.toString() || "");
     } else {
       setName("");
       setPhone("");
       setEmail("");
       setAddress("");
+      setOpeningBalance("");
     }
   }, [initial, open]);
 
   const handleSave = () => {
-    onSave({
-      id: initial?.id || generateId(),
+    const supplierData = {
+      id: initial?.id || "",
       name,
       phone,
-      email,
+      email: email || undefined,
       address: address || undefined,
-    });
+      opening_balance: openingBalance ? parseFloat(openingBalance) : 0,
+    };
+
+    onSave(supplierData as Supplier);
+    // triggerWebhook({ action: 'add new-supplier', ...supplierData });
     onClose();
   };
 
@@ -67,8 +75,18 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
             <Input className="mt-1" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
           <div>
-            <Label>Email</Label>
+            <Label>Email (Optional)</Label>
             <Input className="mt-1" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <Label>Opening Balance (Pre-Pending Amount)</Label>
+            <Input
+              className="mt-1"
+              type="number"
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
+              placeholder="0.00"
+            />
           </div>
           <div>
             <Label>Address (optional)</Label>
@@ -77,7 +95,7 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name || !phone || !email}>Save</Button>
+          <Button onClick={handleSave} disabled={!name || !phone}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

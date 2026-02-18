@@ -1,111 +1,118 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Plus, Download, Upload } from "lucide-react";
+import { Plus, Download, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { SaleForm } from "@/components/SaleForm";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, parseCSV, importCSVFile, formatINR } from "@/lib/csv";
-import { generateId } from "@/hooks/useLocalStorage";
-import type { Sale, Customer } from "@/types";
+import type { Sale, Customer, Receipt } from "@/types";
 
 export default function Sales() {
-  const [sales, setSales] = useLocalStorage<Sale[]>("sales", []);
-  const [customers] = useLocalStorage<Customer[]>("customers", []);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Sale | null>(null);
+    const { data: sales, loading: loadingSales, add: addSale, update: updateSale, remove: removeSale } = useSupabase<Sale>("sales");
+    const { data: customers } = useSupabase<Customer>("customers");
 
-  const handleSave = (s: Sale) => {
-    setSales((prev) => {
-      const idx = prev.findIndex((x) => x.id === s.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = s;
-        return copy;
-      }
-      return [...prev, s];
-    });
-  };
+    const [formOpen, setFormOpen] = useState(false);
+    const [editing, setEditing] = useState<Sale | null>(null);
 
-  const handleDelete = (s: Sale) => {
-    if (confirm("Delete this sale?")) {
-      setSales((prev) => prev.filter((x) => x.id !== s.id));
-    }
-  };
+    const handleSave = async (s: Sale) => {
+        if (editing) {
+            await updateSale(s.id, {
+                date: s.date,
+                customer_name: s.customer_name,
+                bill_number: s.bill_number,
+                total_amount: s.total_amount,
+                notes: s.notes
+            });
+        } else {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, ...rest } = s;
+            await addSale(rest);
+        }
+    };
 
-  const handleExport = () => {
-    const cols = [
-      { key: "date", label: "Date" },
-      { key: "customerName", label: "Customer" },
-      { key: "itemName", label: "Item" },
-      { key: "quantity", label: "Quantity" },
-      { key: "price", label: "Price" },
-      { key: "totalAmount", label: "Total" },
-      { key: "notes", label: "Notes" },
+    const handleDelete = async (s: Sale) => {
+        if (confirm("Delete this sale?")) {
+            await removeSale(s.id);
+        }
+    };
+
+    const handleExport = () => {
+        const cols = [
+            { key: "date", label: "Date" },
+            { key: "bill_number", label: "Bill No" },
+            { key: "customer_name", label: "Customer" },
+            { key: "total_amount", label: "Total Amount" },
+            { key: "notes", label: "Notes" },
+        ];
+        const exportData = sales.map((s) => ({
+            ...s,
+            date: format(new Date(s.date), "yyyy-MM-dd"),
+        }));
+        exportToCSV(exportData, "sales", cols);
+    };
+
+    const handleImport = () => {
+        importCSVFile((text) => {
+            const imported = parseCSV(text, (row) => ({
+                id: "temp",
+                date: new Date(row["Date"] || new Date()).toISOString(),
+                customer_name: row["Customer"] || "",
+                bill_number: row["Bill No"] || "",
+                total_amount: parseFloat(row["Total Amount"]) || 0,
+                notes: row["Notes"] || undefined,
+            }));
+
+            imported.forEach(async (s) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { id, ...rest } = s;
+                await addSale(rest);
+            });
+        });
+    };
+
+    const columns = [
+        { key: "date", label: "Date", sortable: true, render: (s: Sale) => format(new Date(s.date), "MMM d, yyyy") },
+        { key: "bill_number", label: "Bill No", sortable: true },
+        { key: "customer_name", label: "Customer", sortable: true },
+        { key: "total_amount", label: "Amount", sortable: true, render: (s: Sale) => formatINR(s.total_amount) },
     ];
-    const exportData = sales.map((s) => ({
-      ...s,
-      date: format(new Date(s.date), "yyyy-MM-dd"),
-    }));
-    exportToCSV(exportData, "sales", cols);
-  };
 
-  const handleImport = () => {
-    importCSVFile((text) => {
-      const imported = parseCSV(text, (row) => ({
-        id: generateId(),
-        date: new Date(row["Date"] || new Date()).toISOString(),
-        customerName: row["Customer"] || "",
-        itemName: row["Item"] || "",
-        quantity: parseFloat(row["Quantity"]) || 0,
-        price: parseFloat(row["Price"]) || 0,
-        totalAmount: parseFloat(row["Total"]) || (parseFloat(row["Quantity"]) || 0) * (parseFloat(row["Price"]) || 0),
-        notes: row["Notes"] || undefined,
-      }));
-      setSales((prev) => [...prev, ...imported]);
-    });
-  };
+    if (loadingSales) {
+        return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
 
-  const columns = [
-    { key: "date", label: "Date", sortable: true, render: (s: Sale) => format(new Date(s.date), "MMM d, yyyy") },
-    { key: "customerName", label: "Customer", sortable: true },
-    { key: "itemName", label: "Item", sortable: true },
-    { key: "quantity", label: "Qty", sortable: true },
-    { key: "price", label: "Price", sortable: true, render: (s: Sale) => formatINR(s.price) },
-    { key: "totalAmount", label: "Total", sortable: true, render: (s: Sale) => formatINR(s.totalAmount) },
-  ];
-
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Sales</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
-            <Upload className="h-4 w-4" /> Import CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={sales.length === 0}>
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
-          <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Add Sale
-          </Button>
+    return (
+        <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                <h1 className="text-2xl font-bold text-foreground">Sales</h1>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
+                        <Upload className="h-4 w-4" /> Import CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={sales.length === 0}>
+                        <Download className="h-4 w-4" /> Export CSV
+                    </Button>
+                    <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
+                        <Plus className="h-4 w-4" /> Add Sale
+                    </Button>
+                </div>
+            </div>
+            <DataTable
+                data={sales}
+                columns={columns}
+                searchPlaceholder="Search sales..."
+                searchKey="customer_name" // Search by customer name
+                onEdit={(s) => { setEditing(s); setFormOpen(true); }}
+                onDelete={handleDelete}
+            />
+            <SaleForm
+                open={formOpen}
+                onClose={() => setFormOpen(false)}
+                onSave={handleSave}
+                initial={editing}
+                customers={customers}
+            />
         </div>
-      </div>
-      <DataTable
-        data={sales}
-        columns={columns}
-        searchPlaceholder="Search sales..."
-        showDateFilter
-        onEdit={(s) => { setEditing(s); setFormOpen(true); }}
-        onDelete={handleDelete}
-      />
-      <SaleForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        onSave={handleSave}
-        initial={editing}
-        customers={customers}
-      />
-    </div>
-  );
+    );
 }

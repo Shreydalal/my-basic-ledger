@@ -20,6 +20,7 @@ interface Column<T> {
   label: string;
   render?: (item: T) => React.ReactNode;
   sortable?: boolean;
+  className?: string;
 }
 
 interface DataTableProps<T> {
@@ -29,16 +30,18 @@ interface DataTableProps<T> {
   searchKey?: string;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
+  onRowClick?: (item: T) => void;
   showDateFilter?: boolean;
 }
 
-export function DataTable<T extends { id: string; [key: string]: any }>({
+export function DataTable<T extends { id: string;[key: string]: any }>({
   data,
   columns,
   searchPlaceholder = "Search...",
   searchKey = "name",
   onEdit,
   onDelete,
+  onRowClick,
   showDateFilter = false,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
@@ -91,8 +94,8 @@ export function DataTable<T extends { id: string; [key: string]: any }>({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="relative flex-1 w-full sm:w-auto min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={searchPlaceholder}
@@ -139,7 +142,7 @@ export function DataTable<T extends { id: string; [key: string]: any }>({
           <TableHeader>
             <TableRow>
               {columns.map((col) => (
-                <TableHead key={col.key}>
+                <TableHead key={col.key} className={col.className}>
                   {col.sortable ? (
                     <button
                       className="flex items-center gap-1 hover:text-foreground"
@@ -153,7 +156,7 @@ export function DataTable<T extends { id: string; [key: string]: any }>({
                   )}
                 </TableHead>
               ))}
-              {(onEdit || onDelete) && <TableHead className="w-[100px]">Actions</TableHead>}
+              {(onEdit || onDelete) && <TableHead className="w-[100px] hidden md:table-cell">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -165,22 +168,41 @@ export function DataTable<T extends { id: string; [key: string]: any }>({
               </TableRow>
             ) : (
               filtered.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow
+                  key={item.id}
+                  className={cn(onRowClick && "cursor-pointer hover:bg-muted/50")}
+                  onClick={() => onRowClick && onRowClick(item)}
+                >
                   {columns.map((col) => (
-                    <TableCell key={col.key}>
+                    <TableCell key={col.key} className={col.className}>
                       {col.render ? col.render(item) : item[col.key]}
                     </TableCell>
                   ))}
                   {(onEdit || onDelete) && (
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex gap-1">
                         {onEdit && (
-                          <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(item);
+                            }}
+                          >
                             Edit
                           </Button>
                         )}
                         {onDelete && (
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onDelete(item)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(item);
+                            }}
+                          >
                             Delete
                           </Button>
                         )}

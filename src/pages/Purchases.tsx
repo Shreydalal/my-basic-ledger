@@ -1,46 +1,48 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Plus, Download, Upload } from "lucide-react";
+import { Plus, Download, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { PurchaseForm } from "@/components/PurchaseForm";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, parseCSV, importCSVFile, formatINR } from "@/lib/csv";
-import { generateId } from "@/hooks/useLocalStorage";
-import type { Purchase, Supplier } from "@/types";
+import type { Purchase, Supplier, Payment } from "@/types";
 
 export default function Purchases() {
-  const [purchases, setPurchases] = useLocalStorage<Purchase[]>("purchases", []);
-  const [suppliers] = useLocalStorage<Supplier[]>("suppliers", []);
+  const { data: purchases, loading: loadingPurchases, add: addPurchase, update: updatePurchase, remove: removePurchase } = useSupabase<Purchase>("purchases");
+  const { data: suppliers } = useSupabase<Supplier>("suppliers");
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Purchase | null>(null);
 
-  const handleSave = (p: Purchase) => {
-    setPurchases((prev) => {
-      const idx = prev.findIndex((x) => x.id === p.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = p;
-        return copy;
-      }
-      return [...prev, p];
-    });
+  const handleSave = async (p: Purchase) => {
+    if (editing) {
+      await updatePurchase(p.id, {
+        date: p.date,
+        supplier_name: p.supplier_name,
+        bill_number: p.bill_number,
+        total_amount: p.total_amount,
+        notes: p.notes
+      });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, ...rest } = p;
+      await addPurchase(rest);
+    }
   };
 
-  const handleDelete = (p: Purchase) => {
+  const handleDelete = async (p: Purchase) => {
     if (confirm("Delete this purchase?")) {
-      setPurchases((prev) => prev.filter((x) => x.id !== p.id));
+      await removePurchase(p.id);
     }
   };
 
   const handleExport = () => {
     const cols = [
       { key: "date", label: "Date" },
-      { key: "supplierName", label: "Supplier" },
-      { key: "itemName", label: "Item" },
-      { key: "quantity", label: "Quantity" },
-      { key: "price", label: "Price" },
-      { key: "totalAmount", label: "Total" },
+      { key: "bill_number", label: "Bill No" },
+      { key: "supplier_name", label: "Supplier" },
+      { key: "total_amount", label: "Total Amount" },
       { key: "notes", label: "Notes" },
     ];
     const exportData = purchases.map((p) => ({
@@ -53,27 +55,32 @@ export default function Purchases() {
   const handleImport = () => {
     importCSVFile((text) => {
       const imported = parseCSV(text, (row) => ({
-        id: generateId(),
+        id: "temp",
         date: new Date(row["Date"] || new Date()).toISOString(),
-        supplierName: row["Supplier"] || "",
-        itemName: row["Item"] || "",
-        quantity: parseFloat(row["Quantity"]) || 0,
-        price: parseFloat(row["Price"]) || 0,
-        totalAmount: parseFloat(row["Total"]) || (parseFloat(row["Quantity"]) || 0) * (parseFloat(row["Price"]) || 0),
+        supplier_name: row["Supplier"] || "",
+        bill_number: row["Bill No"] || "",
+        total_amount: parseFloat(row["Total Amount"]) || 0,
         notes: row["Notes"] || undefined,
       }));
-      setPurchases((prev) => [...prev, ...imported]);
+
+      imported.forEach(async (p) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...rest } = p;
+        await addPurchase(rest);
+      });
     });
   };
 
   const columns = [
     { key: "date", label: "Date", sortable: true, render: (p: Purchase) => format(new Date(p.date), "MMM d, yyyy") },
-    { key: "supplierName", label: "Supplier", sortable: true },
-    { key: "itemName", label: "Item", sortable: true },
-    { key: "quantity", label: "Qty", sortable: true },
-    { key: "price", label: "Price", sortable: true, render: (p: Purchase) => formatINR(p.price) },
-    { key: "totalAmount", label: "Total", sortable: true, render: (p: Purchase) => formatINR(p.totalAmount) },
+    { key: "bill_number", label: "Bill No", sortable: true },
+    { key: "supplier_name", label: "Supplier", sortable: true },
+    { key: "total_amount", label: "Amount", sortable: true, render: (p: Purchase) => formatINR(p.total_amount) },
   ];
+
+  if (loadingPurchases) {
+    return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div>
@@ -95,7 +102,7 @@ export default function Purchases() {
         data={purchases}
         columns={columns}
         searchPlaceholder="Search purchases..."
-        showDateFilter
+        searchKey="supplier_name"
         onEdit={(p) => { setEditing(p); setFormOpen(true); }}
         onDelete={handleDelete}
       />

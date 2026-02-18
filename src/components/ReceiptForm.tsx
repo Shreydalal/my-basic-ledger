@@ -1,0 +1,133 @@
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { triggerWebhook } from "@/lib/webhook";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import type { Receipt, Customer } from "@/types";
+import { generateId } from "@/hooks/useLocalStorage";
+
+interface ReceiptFormProps {
+    open: boolean;
+    onClose: () => void;
+    onSave: (receipt: Receipt) => void;
+    initial?: Receipt | null;
+    customers: Customer[];
+    defaultCustomer?: string;
+}
+
+export function ReceiptForm({ open, onClose, onSave, initial, customers, defaultCustomer }: ReceiptFormProps) {
+    const [date, setDate] = useState<Date>(new Date());
+    const [customerName, setCustomerName] = useState("");
+    const [amount, setAmount] = useState("");
+    const [notes, setNotes] = useState("");
+
+    useEffect(() => {
+        if (initial) {
+            setDate(new Date(initial.date));
+            setCustomerName(initial.customer_name);
+            setAmount(String(initial.amount));
+            setNotes(initial.notes || "");
+        } else {
+            setDate(new Date());
+            setCustomerName(defaultCustomer || "");
+            setAmount("");
+            setNotes("");
+        }
+    }, [initial, open, defaultCustomer]);
+
+    const handleSave = () => {
+        const total = parseFloat(amount) || 0;
+        const receiptData = {
+            id: initial?.id || generateId(),
+            date: date.toISOString(),
+            customer_name: customerName,
+            amount: total,
+            notes: notes || undefined,
+        };
+
+        onSave(receiptData);
+
+        if (!initial) {
+            triggerWebhook({ action: 'add new-receipt', ...receiptData });
+        }
+
+        onClose();
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{initial ? "Edit Receipt" : "Add Receipt"}</DialogTitle>
+                </DialogHeader>
+                {customers.length === 0 ? (
+                    <p className="py-4 text-sm text-muted-foreground">Please add a customer first.</p>
+                ) : (
+                    <div className="grid gap-3 py-2">
+                        <div>
+                            <Label>Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !date && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date ? format(date, "PPP") : "Pick a date"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div>
+                            <Label>Customer</Label>
+                            <Select value={customerName} onValueChange={setCustomerName} disabled={!!defaultCustomer}>
+                                <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select customer" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {customers.map((c) => (
+                                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Amount Received</Label>
+                            <Input className="mt-1" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>Notes (optional)</Label>
+                            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                        </div>
+                    </div>
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    {customers.length > 0 && (
+                        <Button onClick={handleSave} disabled={!customerName || !amount}>Save</Button>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

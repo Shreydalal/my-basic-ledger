@@ -27,42 +27,38 @@ interface SaleFormProps {
 export function SaleForm({ open, onClose, onSave, initial, customers }: SaleFormProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [customerName, setCustomerName] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [price, setPrice] = useState("");
+  const [billNumber, setBillNumber] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (initial) {
       setDate(new Date(initial.date));
-      setCustomerName(initial.customerName);
-      setItemName(initial.itemName);
-      setQuantity(String(initial.quantity));
-      setPrice(String(initial.price));
+      setCustomerName(initial.customer_name);
+      setBillNumber(initial.bill_number);
+      setTotalAmount(String(initial.total_amount));
       setNotes(initial.notes || "");
     } else {
       setDate(new Date());
       setCustomerName("");
-      setItemName("");
-      setQuantity("");
-      setPrice("");
+      setBillNumber("");
+      setTotalAmount("");
       setNotes("");
     }
   }, [initial, open]);
 
   const handleSave = () => {
-    const qty = parseFloat(quantity) || 0;
-    const prc = parseFloat(price) || 0;
-    onSave({
+    const amount = parseFloat(totalAmount) || 0;
+    const saleData = {
       id: initial?.id || generateId(),
       date: date.toISOString(),
-      customerName,
-      itemName,
-      quantity: qty,
-      price: prc,
-      totalAmount: qty * prc,
+      customer_name: customerName,
+      bill_number: billNumber,
+      total_amount: amount,
       notes: notes || undefined,
-    });
+    };
+
+    onSave(saleData as Sale);
     onClose();
   };
 
@@ -104,21 +100,12 @@ export function SaleForm({ open, onClose, onSave, initial, customers }: SaleForm
               </Select>
             </div>
             <div>
-              <Label>Item Name</Label>
-              <Input className="mt-1" value={itemName} onChange={(e) => setItemName(e.target.value)} />
+              <Label>Bill Number</Label>
+              <Input className="mt-1" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Quantity</Label>
-                <Input className="mt-1" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-              </div>
-              <div>
-                <Label>Price</Label>
-                <Input className="mt-1" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Total: <span className="font-medium text-foreground">{formatINR((parseFloat(quantity) || 0) * (parseFloat(price) || 0))}</span>
+            <div>
+              <Label>Total Amount</Label>
+              <Input className="mt-1" type="number" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
             <div>
               <Label>Notes (optional)</Label>
@@ -129,7 +116,7 @@ export function SaleForm({ open, onClose, onSave, initial, customers }: SaleForm
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           {customers.length > 0 && (
-            <Button onClick={handleSave} disabled={!customerName || !itemName}>Save</Button>
+            <Button onClick={handleSave} disabled={!customerName || !billNumber || !totalAmount}>Save</Button>
           )}
         </DialogFooter>
       </DialogContent>
