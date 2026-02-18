@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Plus, Download, Upload, Loader2 } from "lucide-react";
+import { Plus, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { PurchaseForm } from "@/components/PurchaseForm";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, parseCSV, importCSVFile, formatINR } from "@/lib/csv";
+import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Purchase, Supplier, Payment } from "@/types";
 
 export default function Purchases() {
@@ -52,25 +52,6 @@ export default function Purchases() {
     exportToCSV(exportData, "purchases", cols);
   };
 
-  const handleImport = () => {
-    importCSVFile((text) => {
-      const imported = parseCSV(text, (row) => ({
-        id: "temp",
-        date: new Date(row["Date"] || new Date()).toISOString(),
-        supplier_name: row["Supplier"] || "",
-        bill_number: row["Bill No"] || "",
-        total_amount: parseFloat(row["Total Amount"]) || 0,
-        notes: row["Notes"] || undefined,
-      }));
-
-      imported.forEach(async (p) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...rest } = p;
-        await addPurchase(rest);
-      });
-    });
-  };
-
   const columns = [
     { key: "date", label: "Date", sortable: true, render: (p: Purchase) => format(new Date(p.date), "MMM d, yyyy") },
     { key: "bill_number", label: "Bill No", sortable: true },
@@ -87,9 +68,6 @@ export default function Purchases() {
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <h1 className="text-2xl font-bold text-foreground">Purchases</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
-            <Upload className="h-4 w-4" /> Import CSV
-          </Button>
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={purchases.length === 0}>
             <Download className="h-4 w-4" /> Export CSV
           </Button>

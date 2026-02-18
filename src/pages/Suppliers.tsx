@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Plus, Download, Upload, IndianRupee, Loader2 } from "lucide-react";
+import { Plus, Download, IndianRupee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { SupplierForm } from "@/components/SupplierForm";
 import { PaymentForm } from "@/components/PaymentForm";
 import { SupplierDetails } from "@/components/SupplierDetails";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, parseCSV, importCSVFile, formatINR } from "@/lib/csv";
+import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Supplier, Purchase, Payment } from "@/types";
 
 export default function Suppliers() {
@@ -69,25 +69,6 @@ export default function Suppliers() {
         ]);
     };
 
-    const handleImport = () => {
-        importCSVFile((text) => {
-            const imported = parseCSV(text, (row) => ({
-                id: "temp",
-                name: row["Name"] || "",
-                phone: row["Phone"] || "",
-                email: row["Email"] || "",
-                opening_balance: parseFloat(row["Opening Bal"]) || 0,
-                address: row["Address"] || undefined,
-            }));
-
-            imported.forEach(async (s) => {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { id, ...rest } = s;
-                await addSupplier(rest);
-            });
-        });
-    };
-
     const getPendingAmount = (supplierName: string) => {
         const supplier = suppliers.find(s => s.name === supplierName);
         const openingBalance = supplier?.opening_balance || 0;
@@ -145,9 +126,6 @@ export default function Suppliers() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h1 className="text-2xl font-bold text-foreground">Suppliers</h1>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
-                            <Upload className="h-4 w-4" /> Import CSV
-                        </Button>
                         <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={suppliers.length === 0}>
                             <Download className="h-4 w-4" /> Export CSV
                         </Button>

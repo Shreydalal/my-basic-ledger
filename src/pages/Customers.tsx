@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Plus, Download, Upload, IndianRupee, Loader2 } from "lucide-react";
+import { Plus, Download, IndianRupee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { CustomerForm } from "@/components/CustomerForm";
 import { ReceiptForm } from "@/components/ReceiptForm";
 import { CustomerDetails } from "@/components/CustomerDetails";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, parseCSV, importCSVFile, formatINR } from "@/lib/csv";
+import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Customer, Sale, Receipt } from "@/types";
 
 export default function Customers() {
@@ -69,25 +69,6 @@ export default function Customers() {
     ]);
   };
 
-  const handleImport = () => {
-    importCSVFile((text) => {
-      const imported = parseCSV(text, (row) => ({
-        id: "temp",
-        name: row["Name"] || "",
-        phone: row["Phone"] || "",
-        email: row["Email"] || "",
-        opening_balance: parseFloat(row["Opening Bal"]) || 0,
-        address: row["Address"] || undefined,
-      }));
-
-      imported.forEach(async (c) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...rest } = c;
-        await addCustomer(rest);
-      });
-    });
-  };
-
   const getPendingAmount = (customerName: string) => {
     const customer = customers.find(c => c.name === customerName);
     const openingBalance = customer?.opening_balance || 0;
@@ -145,9 +126,6 @@ export default function Customers() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-foreground">Customers</h1>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5">
-              <Upload className="h-4 w-4" /> Import CSV
-            </Button>
             <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={customers.length === 0}>
               <Download className="h-4 w-4" /> Export CSV
             </Button>
