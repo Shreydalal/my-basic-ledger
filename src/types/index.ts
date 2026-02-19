@@ -15,6 +15,11 @@ export interface Supplier {
     email?: string;
     address?: string;
     opening_balance?: number;
+    bank_account_number?: string;
+    ifsc_code?: string;
+    bank_name?: string;
+    branch_name?: string;
+    gst_number?: string;
     created_at?: string;
 }
 

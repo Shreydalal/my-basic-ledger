@@ -27,6 +27,11 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [branch, setBranch] = useState("");
+  const [gst, setGst] = useState("");
 
   useEffect(() => {
     if (initial) {
@@ -35,12 +40,22 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
       setEmail(initial.email || "");
       setAddress(initial.address || "");
       setOpeningBalance(initial.opening_balance?.toString() || "");
+      setBankAccount(initial.bank_account_number || "");
+      setIfsc(initial.ifsc_code || "");
+      setBankName(initial.bank_name || "");
+      setBranch(initial.branch_name || "");
+      setGst(initial.gst_number || "");
     } else {
       setName("");
       setPhone("");
       setEmail("");
       setAddress("");
       setOpeningBalance("");
+      setBankAccount("");
+      setIfsc("");
+      setBankName("");
+      setBranch("");
+      setGst("");
     }
   }, [initial, open]);
 
@@ -52,6 +67,11 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
       email: email || undefined,
       address: address || undefined,
       opening_balance: openingBalance ? parseFloat(openingBalance) : 0,
+      bank_account_number: bankAccount || undefined,
+      ifsc_code: ifsc || undefined,
+      bank_name: bankName || undefined,
+      branch_name: branch || undefined,
+      gst_number: gst || undefined,
     };
 
     onSave(supplierData as Supplier);
@@ -91,6 +111,30 @@ export function SupplierForm({ open, onClose, onSave, initial }: SupplierFormPro
           <div>
             <Label>Address (optional)</Label>
             <Textarea className="mt-1" rows={2} value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>GST Number</Label>
+              <Input className="mt-1" value={gst} onChange={(e) => setGst(e.target.value)} placeholder="GSTIN" />
+            </div>
+            <div>
+              <Label>Bank Account No</Label>
+              <Input className="mt-1" value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>IFSC Code</Label>
+              <Input className="mt-1" value={ifsc} onChange={(e) => setIfsc(e.target.value)} />
+            </div>
+            <div>
+              <Label>Bank Name</Label>
+              <Input className="mt-1" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Branch Name</Label>
+            <Input className="mt-1" value={branch} onChange={(e) => setBranch(e.target.value)} />
           </div>
         </div>
         <DialogFooter>

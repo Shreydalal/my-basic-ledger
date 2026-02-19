@@ -92,6 +92,42 @@ export function SupplierDetails({
                             </div>
                         )}
                     </div>
+                    {/* Bank & GST Details */}
+                    {(supplier.gst_number || supplier.bank_account_number) && (
+                        <div className="mt-4 pt-4 border-t text-sm grid gap-2">
+                            {supplier.gst_number && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">GSTIN:</span>
+                                    <span className="font-medium select-all">{supplier.gst_number}</span>
+                                </div>
+                            )}
+                            {supplier.bank_name && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Bank:</span>
+                                    <span className="font-medium">{supplier.bank_name}</span>
+                                </div>
+                            )}
+                            {supplier.bank_account_number && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Account:</span>
+                                    <span className="font-medium select-all">{supplier.bank_account_number}</span>
+                                </div>
+                            )}
+                            {supplier.ifsc_code && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">IFSC:</span>
+                                    <span className="font-medium select-all">{supplier.ifsc_code}</span>
+                                </div>
+                            )}
+                            {supplier.branch_name && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Branch:</span>
+                                    <span className="font-medium">{supplier.branch_name}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </DialogHeader>
 
                 <div className="px-6 py-4 bg-muted/30 border-y">
@@ -148,6 +184,6 @@ export function SupplierDetails({
                     <Button variant="outline" className="w-full" onClick={onClose}>Close</Button>
                 </DialogFooter>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

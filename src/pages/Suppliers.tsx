@@ -30,13 +30,9 @@ export default function Suppliers() {
 
     const handleSave = async (s: Supplier) => {
         if (editing) {
-            await updateSupplier(s.id, {
-                name: s.name,
-                phone: s.phone,
-                email: s.email,
-                address: s.address,
-                opening_balance: s.opening_balance
-            });
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, created_at, ...updates } = s;
+            await updateSupplier(id, updates);
         } else {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, ...rest } = s;
