@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Plus, Download, Loader2 } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { SaleForm } from "@/components/SaleForm";
+import { DateRangePicker } from "@/components/DateRangePicker";
 import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Sale, Customer, Receipt } from "@/types";
@@ -14,6 +16,25 @@ export default function Sales() {
 
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<Sale | null>(null);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    const filteredSales = sales.filter((sale) => {
+        if (!dateRange?.from) return true;
+        const saleDate = new Date(sale.date);
+
+        if (!dateRange.to) {
+            return isWithinInterval(saleDate, {
+                start: startOfDay(dateRange.from),
+                end: endOfDay(dateRange.from)
+            });
+        }
+
+        return isWithinInterval(saleDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to)
+        });
+    });
+
 
     const handleSave = async (s: Sale) => {
         if (editing) {
@@ -45,7 +66,7 @@ export default function Sales() {
             { key: "total_amount", label: "Total Amount" },
             { key: "notes", label: "Notes" },
         ];
-        const exportData = sales.map((s) => ({
+        const exportData = filteredSales.map((s) => ({
             ...s,
             date: format(new Date(s.date), "yyyy-MM-dd"),
         }));
@@ -65,10 +86,11 @@ export default function Sales() {
 
     return (
         <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-foreground">Sales</h1>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={sales.length === 0}>
+                <div className="flex flex-wrap items-center gap-2">
+                    <DateRangePicker date={dateRange} setDate={setDateRange} />
+                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={filteredSales.length === 0}>
                         <Download className="h-4 w-4" /> Export CSV
                     </Button>
                     <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
@@ -77,7 +99,7 @@ export default function Sales() {
                 </div>
             </div>
             <DataTable
-                data={sales}
+                data={filteredSales}
                 columns={columns}
                 searchPlaceholder="Search sales..."
                 searchKey="customer_name" // Search by customer name

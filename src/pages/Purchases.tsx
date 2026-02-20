@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Plus, Download, Loader2 } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { PurchaseForm } from "@/components/PurchaseForm";
+import { DateRangePicker } from "@/components/DateRangePicker";
 import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Purchase, Supplier, Payment } from "@/types";
@@ -14,6 +16,24 @@ export default function Purchases() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Purchase | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  const filteredPurchases = purchases.filter((purchase) => {
+    if (!dateRange?.from) return true;
+    const purchaseDate = new Date(purchase.date);
+
+    if (!dateRange.to) {
+      return isWithinInterval(purchaseDate, {
+        start: startOfDay(dateRange.from),
+        end: endOfDay(dateRange.from)
+      });
+    }
+
+    return isWithinInterval(purchaseDate, {
+      start: startOfDay(dateRange.from),
+      end: endOfDay(dateRange.to)
+    });
+  });
 
   const handleSave = async (p: Purchase) => {
     if (editing) {
@@ -45,7 +65,7 @@ export default function Purchases() {
       { key: "total_amount", label: "Total Amount" },
       { key: "notes", label: "Notes" },
     ];
-    const exportData = purchases.map((p) => ({
+    const exportData = filteredPurchases.map((p) => ({
       ...p,
       date: format(new Date(p.date), "yyyy-MM-dd"),
     }));
@@ -65,10 +85,11 @@ export default function Purchases() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-foreground">Purchases</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={purchases.length === 0}>
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangePicker date={dateRange} setDate={setDateRange} />
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={filteredPurchases.length === 0}>
             <Download className="h-4 w-4" /> Export CSV
           </Button>
           <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
@@ -77,7 +98,7 @@ export default function Purchases() {
         </div>
       </div>
       <DataTable
-        data={purchases}
+        data={filteredPurchases}
         columns={columns}
         searchPlaceholder="Search purchases..."
         searchKey="supplier_name"

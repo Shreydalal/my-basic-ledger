@@ -1,16 +1,38 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { BarChart3, TrendingUp, TrendingDown, Users, Truck } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { formatINR } from "@/lib/csv";
 import { useSupabase } from "@/hooks/useSupabase";
+import { DateRangePicker } from "@/components/DateRangePicker";
 import type { Sale, Purchase, Customer, Supplier } from "@/types";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: sales, loading: loadingSales } = useSupabase<Sale>("sales");
   const { data: purchases, loading: loadingPurchases } = useSupabase<Purchase>("purchases");
   const { data: customers } = useSupabase<Customer>("customers");
   const { data: suppliers } = useSupabase<Supplier>("suppliers");
 
-  const totalSales = sales.reduce((acc, curr) => acc + curr.total_amount, 0);
-  const totalPurchases = purchases.reduce((acc, curr) => acc + curr.total_amount, 0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  const filteredSales = sales.filter((sale) => {
+    if (!dateRange?.from) return true;
+    const saleDate = new Date(sale.date);
+    if (!dateRange.to) return isWithinInterval(saleDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+    return isWithinInterval(saleDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+  });
+
+  const filteredPurchases = purchases.filter((purchase) => {
+    if (!dateRange?.from) return true;
+    const purchaseDate = new Date(purchase.date);
+    if (!dateRange.to) return isWithinInterval(purchaseDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+    return isWithinInterval(purchaseDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+  });
+
+  const totalSales = filteredSales.reduce((acc, curr) => acc + curr.total_amount, 0);
+  const totalPurchases = filteredPurchases.reduce((acc, curr) => acc + curr.total_amount, 0);
 
   const stats = [
     {
@@ -18,14 +40,16 @@ export default function Dashboard() {
       value: formatINR(totalSales),
       icon: TrendingUp,
       color: "text-green-500",
-      description: `${sales.length} transactions`,
+      description: `${filteredSales.length} transactions`,
+      path: "/sales",
     },
     {
       title: "Total Purchases",
       value: formatINR(totalPurchases),
       icon: TrendingDown,
       color: "text-red-500",
-      description: `${purchases.length} transactions`,
+      description: `${filteredPurchases.length} transactions`,
+      path: "/purchases",
     },
     {
       title: "Customers",
@@ -33,6 +57,7 @@ export default function Dashboard() {
       icon: Users,
       color: "text-blue-500",
       description: "Active customers",
+      path: "/customers",
     },
     {
       title: "Suppliers",
@@ -40,6 +65,7 @@ export default function Dashboard() {
       icon: Truck,
       color: "text-orange-500",
       description: "Active suppliers",
+      path: "/suppliers",
     },
   ];
 
@@ -49,12 +75,16 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-foreground">Dashboard</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <DateRangePicker date={dateRange} setDate={setDateRange} />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.title}
-            className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm"
+            onClick={() => navigate(stat.path)}
+            className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center justify-between space-y-0 pb-2">
               <h3 className="text-sm font-medium tracking-tight">{stat.title}</h3>
@@ -79,7 +109,7 @@ export default function Dashboard() {
         <div className="col-span-3 rounded-xl border bg-card p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-medium">Recent Sales</h3>
           <div className="space-y-4">
-            {sales.slice(0, 5).map((sale) => (
+            {filteredSales.slice(0, 5).map((sale) => (
               <div key={sale.id} className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">{sale.customer_name}</p>
@@ -88,7 +118,7 @@ export default function Dashboard() {
                 <div className="font-medium">{formatINR(sale.total_amount)}</div>
               </div>
             ))}
-            {sales.length === 0 && <p className="text-sm text-muted-foreground">No recent sales</p>}
+            {filteredSales.length === 0 && <p className="text-sm text-muted-foreground">No recent sales</p>}
           </div>
         </div>
       </div>
