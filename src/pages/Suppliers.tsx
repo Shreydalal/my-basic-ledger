@@ -56,11 +56,16 @@ export default function Suppliers() {
     };
 
     const handleExport = () => {
-        exportToCSV(suppliers, "suppliers", [
+        const exportData = suppliers.map(s => ({
+            ...s,
+            current_balance: getPendingAmount(s.name)
+        }));
+
+        exportToCSV(exportData, "suppliers", [
             { key: "name", label: "Name" },
             { key: "phone", label: "Phone" },
             { key: "email", label: "Email" },
-            { key: "opening_balance", label: "Opening Bal" },
+            { key: "current_balance", label: "Current Bal" },
             { key: "address", label: "Address" },
         ]);
     };
