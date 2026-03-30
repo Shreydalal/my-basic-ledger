@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Plus, Download, IndianRupee, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { Plus, Download, IndianRupee, History, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { SupplierForm } from "@/components/SupplierForm";
@@ -20,6 +21,13 @@ export default function Suppliers() {
 
     const [editing, setEditing] = useState<Supplier | null>(null);
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+    // Live "time since" updates
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const id = window.setInterval(() => setNow(Date.now()), 60_000);
+        return () => window.clearInterval(id);
+    }, []);
 
     const totalPayable = (() => {
         const totalOpening = suppliers.reduce((sum, s) => sum + (s.opening_balance || 0), 0);
@@ -85,10 +93,47 @@ export default function Suppliers() {
         return (totalPurchases + openingBalance) - totalPayments;
     };
 
-    const columns = [
-        { key: "name", label: "Name", sortable: true, className: "max-w-[150px] truncate" },
+    const columns = useMemo(() => [
+        {
+            key: "name",
+            label: "Name",
+            sortable: true,
+            className: "max-w-[140px]",
+            render: (s: Supplier) => {
+                const supplierPayments = payments.filter(p => p.supplier_name === s.name);
+                const dates = supplierPayments.map(p => new Date(p.date).getTime()).filter(t => !isNaN(t));
+
+                const lastPaymentDate = dates.length > 0 ? new Date(Math.max(...dates)) : null;
+
+                return (
+                    <div className="flex flex-col py-0.5">
+                        <span className="font-medium truncate text-sm sm:text-base">{s.name}</span>
+                        {lastPaymentDate && (
+                            <span className="text-[10px] text-muted-foreground sm:hidden flex items-center gap-0.5">
+                                <History className="h-2 w-2" />
+                                {formatDistanceToNowStrict(lastPaymentDate, { addSuffix: true })}
+                            </span>
+                        )}
+                    </div>
+                );
+            }
+        },
         { key: "phone", label: "Phone", className: "hidden sm:table-cell" },
-        { key: "email", label: "Email", className: "hidden md:table-cell" },
+        {
+            key: "last_payment",
+            label: "Last Payment",
+            className: "hidden sm:table-cell whitespace-nowrap",
+            render: (s: Supplier) => {
+                // tie to `now` for live refresh
+                void now;
+                const supplierPayments = payments.filter(p => p.supplier_name === s.name);
+                const dates = supplierPayments.map(p => new Date(p.date).getTime()).filter(t => !isNaN(t));
+
+                if (dates.length === 0) return "—";
+                const lastDate = new Date(Math.max(...dates));
+                return formatDistanceToNowStrict(lastDate, { addSuffix: true });
+            }
+        },
         { key: "address", label: "Address", className: "hidden md:table-cell", render: (s: Supplier) => s.address || "—" },
         {
             key: "pending",
@@ -115,7 +160,7 @@ export default function Suppliers() {
                 </Button>
             )
         }
-    ];
+    ], [now, purchases, payments, suppliers]);
 
     if (loadingSuppliers) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

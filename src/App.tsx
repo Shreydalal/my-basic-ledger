@@ -10,6 +10,7 @@ import Sales from "./pages/Sales";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
+import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -47,6 +48,7 @@ const App = () => (
                       <Route path="/sales" element={<Sales />} />
                       <Route path="/suppliers" element={<Suppliers />} />
                       <Route path="/customers" element={<Customers />} />
+                      <Route path="/payments" element={<Payments />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>

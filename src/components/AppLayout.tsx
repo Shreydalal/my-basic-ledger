@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingCart, DollarSign, Truck, Users, Menu, X, BookOpen, LogOut, FileText } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, DollarSign, Truck, Users, Menu, X, BookOpen, LogOut, FileText, IndianRupee } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,7 @@ const navItems = [
   { title: "Sales", url: "/sales", icon: DollarSign },
   { title: "Suppliers", url: "/suppliers", icon: Truck },
   { title: "Customers", url: "/customers", icon: Users },
+  { title: "Payments", url: "/payments", icon: IndianRupee },
   { title: "Reports", url: "/reports", icon: FileText },
 ];
 

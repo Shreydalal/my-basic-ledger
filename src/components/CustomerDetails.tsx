@@ -106,12 +106,12 @@ export function CustomerDetails({
                     </Button>
                 </div>
 
-                <div className="flex-1 overflow-hidden flex flex-col">
-                    <div className="px-6 py-2 bg-background border-b flex items-center gap-2 font-medium">
+                <div className="overflow-hidden flex flex-col">
+                    <div className="px-6 py-2 bg-background border-b flex items-center gap-2 font-medium sticky top-0 z-10">
                         <History className="h-4 w-4 text-muted-foreground" />
                         Transaction History
                     </div>
-                    <ScrollArea className="flex-1">
+                    <ScrollArea className="max-h-[300px]">
                         <div className="p-6 pt-2 space-y-4">
                             {history.length === 0 ? (
                                 <p className="text-center text-sm text-muted-foreground py-8">No transactions found</p>

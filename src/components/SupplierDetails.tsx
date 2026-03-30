@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import {
     IndianRupee,
     Phone,
@@ -58,6 +58,8 @@ export function SupplierDetails({
         ...supplierPurchases.map(p => ({ ...p, type: 'purchase' as const })),
         ...supplierPayments.map(p => ({ ...p, type: 'payment' as const }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    const lastPayment = supplierPayments.length > 0 ? supplierPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date : null;
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -86,9 +88,15 @@ export function SupplierDetails({
                             </div>
                         )}
                         {supplier.address && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 text-muted-foreground/80">
                                 <MapPin className="h-3.5 w-3.5" />
                                 <span className="truncate max-w-[250px]">{supplier.address}</span>
+                            </div>
+                        )}
+                        {lastPayment && (
+                            <div className="flex items-center gap-2 text-primary font-medium mt-0.5">
+                                <History className="h-3.5 w-3.5" />
+                                <span>Last Payment: {formatDistanceToNowStrict(new Date(lastPayment), { addSuffix: true })}</span>
                             </div>
                         )}
                     </div>
@@ -142,12 +150,12 @@ export function SupplierDetails({
                     </Button>
                 </div>
 
-                <div className="flex-1 overflow-hidden flex flex-col">
-                    <div className="px-6 py-2 bg-background border-b flex items-center gap-2 font-medium">
+                <div className="overflow-hidden flex flex-col">
+                    <div className="px-6 py-2 bg-background border-b flex items-center gap-2 font-medium sticky top-0 z-10">
                         <History className="h-4 w-4 text-muted-foreground" />
                         Transaction History
                     </div>
-                    <ScrollArea className="flex-1">
+                    <ScrollArea className="max-h-[300px]">
                         <div className="p-6 pt-2 space-y-4">
                             {history.length === 0 ? (
                                 <p className="text-center text-sm text-muted-foreground py-8">No transactions found</p>
