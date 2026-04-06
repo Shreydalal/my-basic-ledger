@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import type { Payment, Supplier } from "@/types/index";
+import type { Payment, Supplier, Purchase } from "@/types/index";
 import { generateId } from "@/hooks/useLocalStorage";
 
 interface PaymentFormProps {
@@ -33,13 +33,17 @@ interface PaymentFormProps {
     initial?: Payment | null;
     suppliers: Supplier[];
     defaultSupplier?: string;
+    purchases?: Purchase[];
+    defaultBillNumber?: string;
 }
 
-export function PaymentForm({ open, onClose, onSave, initial, suppliers, defaultSupplier }: PaymentFormProps) {
+export function PaymentForm({ open, onClose, onSave, initial, suppliers, defaultSupplier, purchases, defaultBillNumber }: PaymentFormProps) {
     const [date, setDate] = useState<Date>(new Date());
     const [supplierName, setSupplierName] = useState("");
     const [amount, setAmount] = useState("");
     const [notes, setNotes] = useState("");
+    const [billNumber, setBillNumber] = useState("");
+    const [isOtherBill, setIsOtherBill] = useState(false);
 
     useEffect(() => {
         if (initial) {
@@ -47,13 +51,41 @@ export function PaymentForm({ open, onClose, onSave, initial, suppliers, default
             setSupplierName(initial.supplier_name);
             setAmount(String(initial.amount));
             setNotes(initial.notes || "");
+            
+            const availableBills = purchases?.filter(p => p.supplier_name === initial.supplier_name && p.bill_number).map(p => p.bill_number) || [];
+            if (initial.bill_number) {
+                if (availableBills.includes(initial.bill_number)) {
+                    setBillNumber(initial.bill_number);
+                    setIsOtherBill(false);
+                } else {
+                    setBillNumber(initial.bill_number);
+                    setIsOtherBill(true);
+                }
+            } else {
+                setBillNumber("");
+                setIsOtherBill(false);
+            }
         } else {
             setDate(new Date());
             setSupplierName(defaultSupplier || "");
             setAmount("");
             setNotes("");
+            
+            if (defaultBillNumber) {
+                const availableBills = purchases?.filter(p => p.supplier_name === (defaultSupplier || "") && p.bill_number).map(p => p.bill_number) || [];
+                if (availableBills.includes(defaultBillNumber)) {
+                    setBillNumber(defaultBillNumber);
+                    setIsOtherBill(false);
+                } else {
+                    setBillNumber(defaultBillNumber);
+                    setIsOtherBill(true);
+                }
+            } else {
+                setBillNumber("");
+                setIsOtherBill(false);
+            }
         }
-    }, [initial, open, defaultSupplier]);
+    }, [initial, open, defaultSupplier, purchases, defaultBillNumber]);
 
     const handleSave = () => {
         const total = parseFloat(amount) || 0;
@@ -63,6 +95,7 @@ export function PaymentForm({ open, onClose, onSave, initial, suppliers, default
             supplier_name: supplierName,
             amount: total,
             notes: notes || undefined,
+            bill_number: billNumber || undefined,
         };
 
         onSave(paymentData);
@@ -115,6 +148,48 @@ export function PaymentForm({ open, onClose, onSave, initial, suppliers, default
                             <Label>Amount Paid</Label>
                             <Input className="mt-1" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
                         </div>
+                        {purchases && purchases.length > 0 && (
+                            <div>
+                                <Label>Bill Number</Label>
+                                <Select 
+                                    value={isOtherBill ? "other" : (billNumber || "none")} 
+                                    onValueChange={(val) => {
+                                        if (val === "none") {
+                                            setBillNumber("");
+                                            setIsOtherBill(false);
+                                        } else if (val === "other") {
+                                            setBillNumber("");
+                                            setIsOtherBill(true);
+                                        } else {
+                                            setBillNumber(val);
+                                            setIsOtherBill(false);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Select bill number" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {Array.from(new Set(purchases.filter(p => p.supplier_name === supplierName && p.bill_number).map(p => p.bill_number))).map(b => (
+                                            <SelectItem key={b} value={b}>{b}</SelectItem>
+                                        ))}
+                                        {initial?.bill_number && !Array.from(new Set(purchases.filter(p => p.supplier_name === supplierName && p.bill_number).map(p => p.bill_number))).includes(initial.bill_number) && !isOtherBill && (
+                                            <SelectItem value={initial.bill_number}>{initial.bill_number}</SelectItem>
+                                        )}
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {isOtherBill && (
+                                    <Input 
+                                        className="mt-2" 
+                                        placeholder="Enter custom bill number" 
+                                        value={billNumber} 
+                                        onChange={(e) => setBillNumber(e.target.value)} 
+                                    />
+                                )}
+                            </div>
+                        )}
                         <div>
                             <Label>Notes (optional)</Label>
                             <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />

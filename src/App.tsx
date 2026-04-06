@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Purchases from "./pages/Purchases";
 import Sales from "./pages/Sales";
 import Suppliers from "./pages/Suppliers";
+import SupplierDetail from "./pages/SupplierDetail";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Payments from "./pages/Payments";
@@ -47,6 +48,7 @@ const App = () => (
                       <Route path="/purchases" element={<Purchases />} />
                       <Route path="/sales" element={<Sales />} />
                       <Route path="/suppliers" element={<Suppliers />} />
+                      <Route path="/suppliers/:id" element={<SupplierDetail />} />
                       <Route path="/customers" element={<Customers />} />
                       <Route path="/payments" element={<Payments />} />
                       <Route path="/reports" element={<Reports />} />

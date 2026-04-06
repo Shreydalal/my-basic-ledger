@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Plus, Download, IndianRupee, History, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { SupplierForm } from "@/components/SupplierForm";
 import { PaymentForm } from "@/components/PaymentForm";
-import { SupplierDetails } from "@/components/SupplierDetails";
 import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, formatINR } from "@/lib/csv";
 import type { Supplier, Purchase, Payment } from "@/types";
 
 export default function Suppliers() {
+    const navigate = useNavigate();
     const { data: suppliers, loading: loadingSuppliers, add: addSupplier, update: updateSupplier, remove: removeSupplier } = useSupabase<Supplier>("suppliers");
     const { data: purchases } = useSupabase<Purchase>("purchases");
     const { data: payments, add: addPayment } = useSupabase<Payment>("payments");
 
     const [formOpen, setFormOpen] = useState(false);
     const [paymentFormOpen, setPaymentFormOpen] = useState(false);
-    const [detailsOpen, setDetailsOpen] = useState(false);
 
     const [editing, setEditing] = useState<Supplier | null>(null);
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -193,8 +193,7 @@ export default function Suppliers() {
                 onEdit={(s) => { setEditing(s); setFormOpen(true); }}
                 onDelete={handleDelete}
                 onRowClick={(s) => {
-                    setSelectedSupplier(s);
-                    setDetailsOpen(true);
+                    navigate(`/suppliers/${s.id}`);
                 }}
             />
             <SupplierForm
@@ -209,16 +208,7 @@ export default function Suppliers() {
                 onSave={handleSavePayment}
                 suppliers={suppliers}
                 defaultSupplier={selectedSupplier?.name}
-            />
-            <SupplierDetails
-                open={detailsOpen}
-                onClose={() => { setDetailsOpen(false); setSelectedSupplier(null); }}
-                supplier={selectedSupplier}
-                onEdit={(s) => { setEditing(s); setFormOpen(true); }}
-                onDelete={handleDelete}
-                onPay={(s) => { setSelectedSupplier(s); setPaymentFormOpen(true); }}
                 purchases={purchases}
-                payments={payments}
             />
         </div>
     );

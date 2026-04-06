@@ -6,12 +6,13 @@ import { DataTable } from "@/components/DataTable";
 import { PaymentForm } from "@/components/PaymentForm";
 import { useSupabase } from "@/hooks/useSupabase";
 import { exportToCSV, formatINR } from "@/lib/csv";
-import type { Payment, Supplier } from "@/types";
+import type { Payment, Supplier, Purchase } from "@/types";
 
 export default function Payments() {
   const { data: payments, loading: loadingPayments, add: addPayment, update: updatePayment, remove: removePayment } =
     useSupabase<Payment>("payments");
   const { data: suppliers } = useSupabase<Supplier>("suppliers");
+  const { data: purchases } = useSupabase<Purchase>("purchases");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
@@ -49,6 +50,7 @@ export default function Payments() {
         supplier_name: p.supplier_name,
         amount: p.amount,
         notes: p.notes,
+        bill_number: p.bill_number,
       });
     } else {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -123,6 +125,7 @@ export default function Payments() {
         onSave={handleSave}
         initial={editing}
         suppliers={suppliers}
+        purchases={purchases}
       />
     </div>
   );

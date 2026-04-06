@@ -58,5 +58,6 @@ export interface Payment {
     supplier_name: string;
     amount: number;
     notes?: string;
+    bill_number?: string;
     created_at?: string;
 }
