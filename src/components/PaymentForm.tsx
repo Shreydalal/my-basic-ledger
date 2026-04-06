@@ -94,8 +94,8 @@ export function PaymentForm({ open, onClose, onSave, initial, suppliers, default
             date: date.toISOString(),
             supplier_name: supplierName,
             amount: total,
-            notes: notes || undefined,
-            bill_number: billNumber || undefined,
+            notes: notes || null,
+            bill_number: billNumber || null,
         };
 
         onSave(paymentData);

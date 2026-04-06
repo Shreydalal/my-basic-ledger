@@ -57,7 +57,7 @@ export interface Payment {
     date: string;
     supplier_name: string;
     amount: number;
-    notes?: string;
-    bill_number?: string;
+    notes?: string | null;
+    bill_number?: string | null;
     created_at?: string;
 }

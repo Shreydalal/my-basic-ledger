@@ -15,10 +15,11 @@ export default function SupplierDetail() {
     
     const { data: suppliers, loading: loadingSuppliers } = useSupabase<Supplier>("suppliers");
     const { data: purchases, loading: loadingPurchases } = useSupabase<Purchase>("purchases");
-    const { data: payments, loading: loadingPayments, add: addPayment } = useSupabase<Payment>("payments");
+    const { data: payments, loading: loadingPayments, add: addPayment, update: updatePayment, remove: removePayment } = useSupabase<Payment>("payments");
 
     const [paymentFormOpen, setPaymentFormOpen] = useState(false);
     const [selectedBillNumber, setSelectedBillNumber] = useState<string | undefined>(undefined);
+    const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
 
     const supplier = suppliers.find(s => s.id === id);
 
@@ -44,27 +45,95 @@ export default function SupplierDetail() {
         return { totalPurchases, totalPayments, pendingAmount, lastPayment, openingBalance };
     }, [supplier, supplierPurchases, supplierPayments]);
 
-    // Calculate remaining amount per bill
-    // If a payment is associated with a bill, it reduces that bill's remaining amount.
+    // Calculate remaining amount per bill using a Waterfall method
+    // Specific payments apply to their bills first. Any overpayment overflows into an excess pool.
+    // Generic payments (no bill number) also go into the excess pool.
+    // Finally, the excess pool cascades down starting from the oldest pending bills.
     const billData = useMemo(() => {
-        return supplierPurchases.map(purchase => {
-            const billPayments = supplierPayments.filter(p => purchase.bill_number && p.bill_number === purchase.bill_number);
-            const paidForBill = billPayments.reduce((sum, p) => sum + p.amount, 0);
+        // Sort chronologically (oldest first) to flow the waterfall correctly
+        const sortedPurchases = [...supplierPurchases].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        let excessPool = 0;
+        
+        // 1. Pool generic payments
+        supplierPayments.forEach(p => {
+            if (!p.bill_number) {
+                excessPool += p.amount;
+            }
+        });
+
+        // 2. First-pass: allocate specific payments
+        const billStatus = sortedPurchases.map(purchase => {
+            const specificPayments = supplierPayments.filter(p => p.bill_number && p.bill_number === purchase.bill_number);
+            const paidSpecifically = specificPayments.reduce((sum, p) => sum + p.amount, 0);
+            
             return {
                 ...purchase,
-                amount_remaining: purchase.total_amount - paidForBill,
-                amount_paid: paidForBill
+                amount_remaining: purchase.total_amount - paidSpecifically,
+                amount_paid: paidSpecifically
             };
         });
+
+        // 3. Second-pass: cascade the excess pool to the oldest unpaid bills
+        for (let i = 0; i < billStatus.length; i++) {
+            // A. Apply any generic payments floating in the pool to this bill first
+            if (excessPool > 0 && billStatus[i].amount_remaining > 0) {
+                const deduction = Math.min(billStatus[i].amount_remaining, excessPool);
+                billStatus[i].amount_remaining -= deduction;
+                billStatus[i].amount_paid += deduction;
+                excessPool -= deduction;
+            }
+
+            // B. If this specific bill is overpaid, cascade its excess strictly FORWARD to future bills
+            if (billStatus[i].amount_remaining < 0) {
+                let over = Math.abs(billStatus[i].amount_remaining);
+                billStatus[i].amount_remaining = 0;
+                billStatus[i].amount_paid = billStatus[i].total_amount;
+
+                for (let j = i + 1; j < billStatus.length; j++) {
+                    if (over > 0 && billStatus[j].amount_remaining > 0) {
+                        const deduction = Math.min(billStatus[j].amount_remaining, over);
+                        billStatus[j].amount_remaining -= deduction;
+                        billStatus[j].amount_paid += deduction;
+                        over -= deduction;
+                    }
+                }
+
+                // If there's STILL excess after cascading through all future bills, leave it parked on this bill
+                if (over > 0) {
+                    billStatus[i].amount_remaining = -over;
+                    billStatus[i].amount_paid += over;
+                }
+            }
+        }
+
+        // Return to original UI sort order (newest first)
+        return billStatus.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [supplierPurchases, supplierPayments]);
 
     const handleSavePayment = async (p: Payment) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _, ...rest } = p;
-        await addPayment({
-            ...rest,
-            supplier_name: supplier?.name || rest.supplier_name
-        });
+        if (editingPayment) {
+            await updatePayment(p.id, {
+                date: p.date,
+                supplier_name: p.supplier_name,
+                amount: p.amount,
+                notes: p.notes,
+                bill_number: p.bill_number,
+            });
+        } else {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id: _, ...rest } = p;
+            await addPayment({
+                ...rest,
+                supplier_name: supplier?.name || rest.supplier_name
+            });
+        }
+    };
+
+    const handleDeletePayment = async (p: Payment) => {
+        if (confirm("Delete this payment?")) {
+            await removePayment(p.id);
+        }
     };
 
     const handleExport = () => {
@@ -105,7 +174,14 @@ export default function SupplierDetail() {
             key: "date",
             label: "Date",
             sortable: true,
+            className: "whitespace-nowrap",
             render: (p: any) => format(new Date(p.date), "MMM d, yyyy")
+        },
+        {
+            key: "time_since",
+            label: "Time Since",
+            className: "text-muted-foreground whitespace-nowrap",
+            render: (p: any) => formatDistanceToNowStrict(new Date(p.date), { addSuffix: true })
         },
         { key: "bill_number", label: "Bill Number", sortable: true },
         { 
@@ -148,6 +224,25 @@ export default function SupplierDetail() {
                 )
             )
         }
+    ];
+
+    const paymentColumns = [
+        {
+            key: "date",
+            label: "Date",
+            sortable: true,
+            className: "w-[120px]",
+            render: (p: any) => format(new Date(p.date), "MMM d, yyyy")
+        },
+        { 
+            key: "amount", 
+            label: "Amount", 
+            sortable: true,
+            className: "text-right font-medium text-green-600",
+            render: (p: any) => formatINR(p.amount)
+        },
+        { key: "bill_number", label: "Paid For Bill", render: (p: any) => p.bill_number || "—" },
+        { key: "notes", label: "Notes", className: "hidden sm:table-cell text-muted-foreground truncate max-w-[200px]", render: (p: any) => p.notes || "—" },
     ];
 
     return (
@@ -249,16 +344,37 @@ export default function SupplierDetail() {
                         />
                     </div>
                 </div>
+
+                <div className="md:col-span-3 space-y-4 min-w-0 mt-4">
+                    <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2">
+                        <History className="h-5 w-5 text-muted-foreground" /> 
+                        Payment History
+                    </h3>
+                    <div className="bg-card border rounded-lg shadow-sm p-4 sm:p-5 overflow-hidden">
+                        <DataTable 
+                            data={supplierPayments} 
+                            columns={paymentColumns} 
+                            searchPlaceholder="Search by bill number..."
+                            searchKey="bill_number"
+                            onEdit={(p) => {
+                                setEditingPayment(p);
+                                setPaymentFormOpen(true);
+                            }}
+                            onDelete={handleDeletePayment}
+                        />
+                    </div>
+                </div>
             </div>
 
             <PaymentForm
                 open={paymentFormOpen}
-                onClose={() => { setPaymentFormOpen(false); setSelectedBillNumber(undefined); }}
+                onClose={() => { setPaymentFormOpen(false); setSelectedBillNumber(undefined); setEditingPayment(null); }}
                 onSave={handleSavePayment}
                 suppliers={[supplier]}
                 defaultSupplier={supplier.name}
                 purchases={purchases}
                 defaultBillNumber={selectedBillNumber}
+                initial={editingPayment}
             />
         </div>
     );
