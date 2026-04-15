@@ -1,22 +1,3 @@
-export function exportToCSV<T extends Record<string, any>>(data: T[], filename: string, columns: { key: string; label: string }[]) {
-  const headers = columns.map((c) => c.label).join(",");
-  const rows = data.map((item) =>
-    columns
-      .map((c) => {
-        const val = item[c.key];
-        const str = val === undefined || val === null ? "" : String(val);
-        return `"${str.replace(/"/g, '""')}"`;
-      })
-      .join(",")
-  );
-  const csv = [headers, ...rows].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-}
 
 export function parseCSV<T>(text: string, mapRow: (row: Record<string, string>) => T): T[] {
   const lines = text.split("\n").filter((l) => l.trim());

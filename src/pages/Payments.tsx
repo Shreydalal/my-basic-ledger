@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { PaymentForm } from "@/components/PaymentForm";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, formatINR } from "@/lib/csv";
+import { formatINR } from "@/lib/csv";
+import { exportToPDF } from "@/lib/pdf";
 import type { Payment, Supplier, Purchase } from "@/types";
 
 export default function Payments() {
@@ -16,6 +17,17 @@ export default function Payments() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredPayments = useMemo(() => {
+    return payments.filter((p) =>
+      p.supplier_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [payments, searchQuery]);
+
+  const totalAmount = useMemo(() => {
+    return filteredPayments.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [filteredPayments]);
 
   const columns = useMemo(
     () => [
@@ -66,17 +78,29 @@ export default function Payments() {
   };
 
   const handleExport = () => {
-    const cols = [
-      { key: "date", label: "Date" },
-      { key: "supplier_name", label: "Supplier" },
-      { key: "amount", label: "Amount" },
-      { key: "notes", label: "Notes" },
-    ];
-    const exportData = payments.map((p) => ({
-      ...p,
+    const exportData = filteredPayments.map((p) => ({
       date: format(new Date(p.date), "yyyy-MM-dd"),
+      supplier_name: p.supplier_name,
+      amount: formatINR(p.amount),
+      notes: p.notes || "—",
     }));
-    exportToCSV(exportData, "payments", cols);
+
+    exportToPDF({
+      title: "Navkar Enterprise - Payments Report",
+      subtitle: `Activity report generated for ${filteredPayments.length} payments.`,
+      filename: "payments_report",
+      data: exportData,
+      columns: [
+        { key: "date", label: "Date" },
+        { key: "supplier_name", label: "Supplier" },
+        { key: "amount", label: "Amount" },
+        { key: "notes", label: "Notes" },
+      ],
+      metrics: [
+        { label: "Total Paid", value: formatINR(totalAmount) },
+        { label: "Total Transactions", value: filteredPayments.length.toString() },
+      ],
+    });
   };
 
   if (loadingPayments) {
@@ -88,21 +112,24 @@ export default function Payments() {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={payments.length === 0}>
-            <Download className="h-4 w-4" /> Export CSV
+    <div className="max-w-6xl mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Payments</h1>
+          <p className="text-muted-foreground mt-2 font-medium">Manage and review outward cash flows.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5" disabled={filteredPayments.length === 0}>
+            <Download className="h-4 w-4 text-muted-foreground" /> Export Report
           </Button>
           <Button
             onClick={() => {
               setEditing(null);
               setFormOpen(true);
             }}
-            className="gap-1.5"
+            className="gap-1.5 gradient-btn text-white"
           >
-            <Plus className="h-4 w-4" /> Add Payment
+            <Plus className="h-4 w-4 text-white" /> Add Payment
           </Button>
         </div>
       </div>

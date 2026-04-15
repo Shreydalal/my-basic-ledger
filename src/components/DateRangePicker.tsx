@@ -28,23 +28,23 @@ export function DateRangePicker({
           <Button
             id="date"
             variant={"outline"}
+            size={"sm"}
             className={cn(
-              "w-[260px] justify-start text-left font-normal",
+              "w-full sm:w-[240px] justify-start text-left font-normal text-xs sm:text-sm h-9",
               !date && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-3.5 w-3.5" />
             {date?.from ? (
               date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
-                </>
+                <span className="truncate">
+                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                </span>
               ) : (
-                format(date.from, "LLL dd, y")
+                <span>{format(date.from, "LLL dd, y")}</span>
               )
             ) : (
-              <span>Filter by Date Range</span>
+              <span>Filter Date</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -55,7 +55,7 @@ export function DateRangePicker({
             defaultMonth={date?.from}
             selected={date}
             onSelect={setDate}
-            numberOfMonths={2}
+            numberOfMonths={1}
           />
         </PopoverContent>
       </Popover>

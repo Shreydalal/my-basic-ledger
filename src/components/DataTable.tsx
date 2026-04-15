@@ -137,32 +137,32 @@ export function DataTable<T extends { id: string;[key: string]: any }>({
         )}
       </div>
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <Table>
+      <div className="rounded-xl overflow-x-auto shadow-sm soft-inset bg-card">
+        <Table className="border-collapse">
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               {columns.map((col) => (
-                <TableHead key={col.key} className={col.className}>
+                <TableHead key={col.key} className={cn("py-4 text-xs font-semibold tracking-wider uppercase", col.className)}>
                   {col.sortable ? (
                     <button
-                      className="flex items-center gap-1 hover:text-foreground"
+                      className="flex items-center gap-1.5 hover:text-foreground transition-colors"
                       onClick={() => handleSort(col.key)}
                     >
                       {col.label}
-                      <ArrowUpDown className="h-3 w-3" />
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   ) : (
                     col.label
                   )}
                 </TableHead>
               ))}
-              {(onEdit || onDelete) && <TableHead className="w-[100px] hidden md:table-cell">Actions</TableHead>}
+              {(onEdit || onDelete) && <TableHead className="w-[100px] hidden md:table-cell py-4">Actions</TableHead>}
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="before:block before:h-2 before:content-['']">
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (onEdit || onDelete ? 1 : 0)} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={columns.length + (onEdit || onDelete ? 1 : 0)} className="h-32 text-center text-muted-foreground text-sm">
                   No records found.
                 </TableCell>
               </TableRow>
@@ -170,40 +170,44 @@ export function DataTable<T extends { id: string;[key: string]: any }>({
               filtered.map((item) => (
                 <TableRow
                   key={item.id}
-                  className={cn(onRowClick && "cursor-pointer hover:bg-muted/50")}
+                  className={cn(
+                    "mb-2 rounded-lg bg-card transition-all duration-200 border border-transparent shadow-sm hover:shadow-md hover:bg-muted/30",
+                    onRowClick && "cursor-pointer"
+                  )}
                   onClick={() => onRowClick && onRowClick(item)}
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.key} className={col.className}>
+                    <TableCell key={col.key} className={cn("py-5 px-4 text-sm font-medium", col.className)}>
                       {col.render ? col.render(item) : item[col.key]}
                     </TableCell>
                   ))}
                   {(onEdit || onDelete) && (
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex gap-1">
+                    <TableCell className="hidden md:table-cell py-5">
+                      <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         {onEdit && (
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 px-2 text-muted-foreground hover:text-foreground"
                             onClick={(e) => {
                               e.stopPropagation();
                               onEdit(item);
                             }}
                           >
-                            Edit
+                             Edit
                           </Button>
                         )}
                         {onDelete && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="h-8 px-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10"
                             onClick={(e) => {
                               e.stopPropagation();
                               onDelete(item);
                             }}
                           >
-                            Delete
+                             Delete
                           </Button>
                         )}
                       </div>

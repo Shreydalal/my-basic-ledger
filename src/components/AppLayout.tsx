@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingCart, DollarSign, Truck, Users, Menu, X, BookOpen, LogOut, FileText, IndianRupee } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
+import { useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  DollarSign,
+  Truck,
+  Users,
+  Menu,
+  X,
+  BookOpen,
+  FileText,
+  IndianRupee,
+  Settings,
+} from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -16,42 +27,61 @@ const navItems = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { logout, user } = useAuth();
+  const location = useLocation();
 
-  const handleLogout = async () => {
-    await logout();
-  };
+  const close = () => setSidebarOpen(false);
+
+  const currentItem = navItems.find(item => item.url === location.pathname) || 
+                      (location.pathname === "/settings" ? { title: "Settings" } : null);
 
   return (
-    <div className="flex min-h-screen w-full bg-muted/30">
-      {/* Mobile overlay */}
+    <div className="flex h-screen w-full overflow-hidden bg-muted/30">
+      {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden transition-opacity"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={close}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ── Sidebar ─────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-card text-card-foreground shadow-xl transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } md:static md:shadow-none md:border-r border-border flex flex-col`}
+        className={`
+          fixed inset-y-0 left-0 z-40 flex w-64 flex-col
+          bg-card text-card-foreground shadow-xl border-r border-border
+          transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0 md:shadow-none
+        `}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-border px-6 shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <BookOpen className="h-5 w-5" />
+        {/* Logo + close button row */}
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">BookKeep</span>
           </div>
-          <span className="text-xl font-bold tracking-tight">BookKeep</span>
+          {/* Close button — visible on mobile only */}
+          <button
+            onClick={close}
+            className="md:hidden rounded-lg p-1.5 text-muted-foreground hover:bg-accent"
+            aria-label="Close sidebar"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <nav className="mt-4 flex flex-col gap-1 px-3 flex-1">
+
+        {/* Nav links */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
           {navItems.map((item) => (
             <NavLink
               key={item.url}
               to={item.url}
               end={item.url === "/"}
-              className="group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground"
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground"
               activeClassName="bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:text-primary-foreground"
-              onClick={() => setSidebarOpen(false)}
+              onClick={close}
             >
               <item.icon className="h-4 w-4 shrink-0" />
               <span>{item.title}</span>
@@ -59,39 +89,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="p-4 border-t mt-auto">
-          <div className="flex items-center gap-3 px-2 mb-4">
-            <div className="bg-muted rounded-full p-2">
-              <Users className="h-4 w-4" />
-            </div>
-            <div className="text-sm overflow-hidden">
-              <p className="font-medium truncate">{user?.email}</p>
-            </div>
-          </div>
-          <Button variant="outline" className="w-full justify-start gap-2" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" /> Log out
-          </Button>
+        {/* Settings link at bottom */}
+        <div className="shrink-0 border-t border-border p-3">
+          <NavLink
+            to="/settings"
+            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground"
+            activeClassName="bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:text-primary-foreground"
+            onClick={close}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            <span>Settings</span>
+          </NavLink>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b bg-card/80 px-6 backdrop-blur-md">
-          <div className="flex items-center gap-4">
+      {/* ── Main area ───────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col overflow-hidden md:ml-64">
+        {/* Top header */}
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-card/80 px-4 md:px-6 backdrop-blur-md text-foreground">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => setSidebarOpen(true)}
               className="rounded-lg p-2 text-muted-foreground hover:bg-accent md:hidden"
+              aria-label="Open menu"
             >
-              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-lg font-semibold md:hidden">BookKeep</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Add header actions here later if needed */}
+            <span className="text-lg font-bold tracking-tight md:hidden">BookKeep</span>
+            <span className="hidden md:block text-lg font-bold tracking-tight">{currentItem?.title || "Overview"}</span>
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-8 w-full max-w-7xl mx-auto">
-          {children}
+
+        {/* Scrollable page content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-8 w-full max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

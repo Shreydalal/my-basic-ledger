@@ -7,19 +7,19 @@ import { DataTable } from "@/components/DataTable";
 import { SupplierForm } from "@/components/SupplierForm";
 import { PaymentForm } from "@/components/PaymentForm";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, formatINR } from "@/lib/csv";
+import { formatINR } from "@/lib/csv";
+import { exportToPDF } from "@/lib/pdf";
 import type { Supplier, Purchase, Payment } from "@/types";
 
 export default function Suppliers() {
     const navigate = useNavigate();
-    const { data: suppliers, loading: loadingSuppliers, add: addSupplier, update: updateSupplier, remove: removeSupplier } = useSupabase<Supplier>("suppliers");
+    const { data: suppliers, loading: loadingSuppliers, add: addSupplier } = useSupabase<Supplier>("suppliers");
     const { data: purchases } = useSupabase<Purchase>("purchases");
     const { data: payments, add: addPayment } = useSupabase<Payment>("payments");
 
     const [formOpen, setFormOpen] = useState(false);
     const [paymentFormOpen, setPaymentFormOpen] = useState(false);
 
-    const [editing, setEditing] = useState<Supplier | null>(null);
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
     // Live "time since" updates
@@ -37,15 +37,9 @@ export default function Suppliers() {
     })();
 
     const handleSave = async (s: Supplier) => {
-        if (editing) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, created_at, ...updates } = s;
-            await updateSupplier(id, updates);
-        } else {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, ...rest } = s;
-            await addSupplier(rest);
-        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...rest } = s;
+        await addSupplier(rest);
     };
 
     const handleSavePayment = async (p: Payment) => {
@@ -57,25 +51,32 @@ export default function Suppliers() {
         });
     };
 
-    const handleDelete = async (s: Supplier) => {
-        if (confirm("Delete this supplier?")) {
-            await removeSupplier(s.id);
-        }
-    };
-
     const handleExport = () => {
         const exportData = suppliers.map(s => ({
-            ...s,
-            current_balance: getPendingAmount(s.name)
+            name: s.name,
+            opening_balance: formatINR(s.opening_balance || 0),
+            current_balance: formatINR(getPendingAmount(s.name)),
+            phone: s.phone || "—",
+            email: s.email || "—"
         }));
 
-        exportToCSV(exportData, "suppliers", [
-            { key: "name", label: "Name" },
-            { key: "phone", label: "Phone" },
-            { key: "email", label: "Email" },
-            { key: "current_balance", label: "Current Bal" },
-            { key: "address", label: "Address" },
-        ]);
+        exportToPDF({
+            title: "Navkar Enterprise - Suppliers",
+            subtitle: "A complete list of registered suppliers and balances.",
+            filename: "suppliers_report",
+            data: exportData,
+            columns: [
+                { key: "name", label: "Name" },
+                { key: "opening_balance", label: "Opening Balance" },
+                { key: "current_balance", label: "Current Balance" },
+                { key: "phone", label: "Phone" },
+                { key: "email", label: "Email" }
+            ],
+            metrics: [
+                { label: "Total Outstanding", value: formatINR(totalPayable) },
+                { label: "Total Suppliers", value: suppliers.length.toString() }
+            ]
+        });
     };
 
     const getPendingAmount = (supplierName: string) => {
@@ -167,40 +168,42 @@ export default function Suppliers() {
     }
 
     return (
-        <div>
-            <div className="flex flex-col gap-4 mb-6">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h1 className="text-2xl font-bold text-foreground">Suppliers</h1>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={suppliers.length === 0}>
-                            <Download className="h-4 w-4" /> Export CSV
-                        </Button>
-                        <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
-                            <Plus className="h-4 w-4" /> Add Supplier
-                        </Button>
-                    </div>
+        <div className="max-w-6xl mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
+                <div>
+                    <h1 className="text-4xl font-bold text-foreground tracking-tight">Suppliers</h1>
+                    <p className="text-muted-foreground mt-2 font-medium">Manage vendors, balances, and payment history.</p>
                 </div>
-                <div className="bg-card border rounded-lg p-4 flex justify-between items-center shadow-sm">
-                    <span className="text-sm font-medium text-muted-foreground">Total Payable (Outstanding)</span>
-                    <span className="text-2xl font-bold text-destructive">{formatINR(totalPayable)}</span>
+                <div className="flex flex-wrap items-center gap-3">
+                    <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5" disabled={suppliers.length === 0}>
+                        <Download className="h-4 w-4" /> Export Report
+                    </Button>
+                    <Button onClick={() => setFormOpen(true)} className="gap-1.5 gradient-btn text-white">
+                        <Plus className="h-4 w-4 text-white" /> Add Supplier
+                    </Button>
                 </div>
+            </div>
+            
+            <div className="mb-8 p-6 rounded-xl overflow-hidden relative soft-inset bg-card shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="z-10 w-full sm:w-auto mb-2 sm:mb-0">
+                    <span className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-muted-foreground break-words">Total Payable (Outstanding)</span>
+                </div>
+                <div className="z-10 w-full sm:w-auto">
+                    <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-warning break-words">{formatINR(totalPayable)}</span>
+                </div>
+                <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-warning/5 to-transparent pointer-events-none" />
             </div>
             <DataTable
                 data={suppliers}
                 columns={columns}
                 searchPlaceholder="Search suppliers..."
                 searchKey="name"
-                onEdit={(s) => { setEditing(s); setFormOpen(true); }}
-                onDelete={handleDelete}
-                onRowClick={(s) => {
-                    navigate(`/suppliers/${s.id}`);
-                }}
+                onRowClick={(s) => navigate(`/suppliers/${s.id}`)}
             />
             <SupplierForm
                 open={formOpen}
                 onClose={() => setFormOpen(false)}
                 onSave={handleSave}
-                initial={editing}
             />
             <PaymentForm
                 open={paymentFormOpen}

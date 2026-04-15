@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Plus, Download, Loader2 } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -7,7 +7,8 @@ import { DataTable } from "@/components/DataTable";
 import { SaleForm } from "@/components/SaleForm";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { useSupabase } from "@/hooks/useSupabase";
-import { exportToCSV, formatINR } from "@/lib/csv";
+import { formatINR } from "@/lib/csv";
+import { exportToPDF } from "@/lib/pdf";
 import type { Sale, Customer, Receipt } from "@/types";
 
 export default function Sales() {
@@ -18,22 +19,28 @@ export default function Sales() {
     const [editing, setEditing] = useState<Sale | null>(null);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-    const filteredSales = sales.filter((sale) => {
-        if (!dateRange?.from) return true;
-        const saleDate = new Date(sale.date);
+    const filteredSales = useMemo(() => {
+        return sales.filter((sale) => {
+            if (!dateRange?.from) return true;
+            const saleDate = new Date(sale.date);
 
-        if (!dateRange.to) {
+            if (!dateRange.to) {
+                return isWithinInterval(saleDate, {
+                    start: startOfDay(dateRange.from),
+                    end: endOfDay(dateRange.from)
+                });
+            }
+
             return isWithinInterval(saleDate, {
                 start: startOfDay(dateRange.from),
-                end: endOfDay(dateRange.from)
+                end: endOfDay(dateRange.to)
             });
-        }
-
-        return isWithinInterval(saleDate, {
-            start: startOfDay(dateRange.from),
-            end: endOfDay(dateRange.to)
         });
-    });
+    }, [sales, dateRange]);
+
+    const totalAmount = useMemo(() => {
+        return filteredSales.reduce((acc, curr) => acc + curr.total_amount, 0);
+    }, [filteredSales]);
 
 
     const handleSave = async (s: Sale) => {
@@ -59,18 +66,31 @@ export default function Sales() {
     };
 
     const handleExport = () => {
-        const cols = [
-            { key: "date", label: "Date" },
-            { key: "bill_number", label: "Bill No" },
-            { key: "customer_name", label: "Customer" },
-            { key: "total_amount", label: "Total Amount" },
-            { key: "notes", label: "Notes" },
-        ];
         const exportData = filteredSales.map((s) => ({
-            ...s,
             date: format(new Date(s.date), "yyyy-MM-dd"),
+            bill_number: s.bill_number,
+            customer_name: s.customer_name,
+            total_amount: formatINR(s.total_amount),
+            notes: s.notes || "—",
         }));
-        exportToCSV(exportData, "sales", cols);
+
+        exportToPDF({
+            title: "Navkar Enterprise - Sales",
+            subtitle: `Sales log generated for ${filteredSales.length} records.`,
+            filename: "sales_report",
+            data: exportData,
+            columns: [
+                { key: "date", label: "Date" },
+                { key: "bill_number", label: "Bill No" },
+                { key: "customer_name", label: "Customer" },
+                { key: "total_amount", label: "Total Amount" },
+                { key: "notes", label: "Notes" },
+            ],
+            metrics: [
+                { label: "Total Sales Base", value: formatINR(totalAmount) },
+                { label: "Total Invoices", value: filteredSales.length.toString() }
+            ]
+        });
     };
 
     const columns = [
@@ -85,16 +105,21 @@ export default function Sales() {
     }
 
     return (
-        <div>
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-foreground">Sales</h1>
-                <div className="flex flex-wrap items-center gap-2">
-                    <DateRangePicker date={dateRange} setDate={setDateRange} />
-                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5" disabled={filteredSales.length === 0}>
-                        <Download className="h-4 w-4" /> Export CSV
+        <div className="max-w-6xl mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
+                <div>
+                    <h1 className="text-4xl font-bold text-foreground tracking-tight">Sales</h1>
+                    <p className="text-muted-foreground mt-2 font-medium">Log and manage outward dispatch invoices.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="bg-card soft-inset rounded-lg p-0.5">
+                        <DateRangePicker date={dateRange} setDate={setDateRange} />
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5" disabled={filteredSales.length === 0}>
+                        <Download className="h-4 w-4 text-muted-foreground" /> Export Report
                     </Button>
-                    <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5">
-                        <Plus className="h-4 w-4" /> Add Sale
+                    <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-1.5 gradient-btn text-white">
+                        <Plus className="h-4 w-4 text-white" /> Add Sale
                     </Button>
                 </div>
             </div>
